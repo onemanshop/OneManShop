@@ -1,0 +1,62 @@
+INFO: Starting logging facilities.
+CRITICAL: could not connect to server: Permission denied
+	Is the server running locally and accepting
+	connections on Unix domain socket "/run/postgresql/.s.PGSQL.5432"?
+
+INFO: Starting logging facilities.
+CRITICAL: could not connect to server: Permission denied
+	Is the server running locally and accepting
+	connections on Unix domain socket "/run/postgresql/.s.PGSQL.5432"?
+
+INFO: Starting logging facilities.
+CRITICAL: could not connect to server: Permission denied
+	Is the server running locally and accepting
+	connections on Unix domain socket "/run/postgresql/.s.PGSQL.5432"?
+
+INFO: Starting logging facilities.
+CRITICAL: could not connect to server: Permission denied
+	Is the server running locally and accepting
+	connections on Unix domain socket "/run/postgresql/.s.PGSQL.5432"?
+
+INFO: Starting logging facilities.
+CRITICAL: could not connect to server: Permission denied
+	Is the server running locally and accepting
+	connections on Unix domain socket "/run/postgresql/.s.PGSQL.5432"?
+
+INFO: Starting logging facilities.
+CRITICAL: FATAL:  role "root" does not exist
+
+CRITICAL: FATAL:  role "root" does not exist
+
+INFO: Starting logging facilities.
+CRITICAL: FATAL:  role "root" does not exist
+
+CRITICAL: FATAL:  role "root" does not exist
+
+INFO: Starting logging facilities.
+CRITICAL: FATAL:  role "root" does not exist
+
+CRITICAL: FATAL:  role "root" does not exist
+
+INFO: Starting logging facilities.
+INFO: Starting logging facilities.
+CRITICAL: FATAL:  role "root" does not exist
+
+CRITICAL: FATAL:  role "root" does not exist
+
+INFO: Starting logging facilities.
+INFO: Starting logging facilities.
+CRITICAL: FATAL:  role "root" does not exist
+
+CRITICAL: FATAL:  role "root" does not exist
+
+INFO: Starting logging facilities.
+CRITICAL: FATAL:  role "root" does not exist
+
+CRITICAL: FATAL:  role "root" does not exist
+
+INFO: Starting logging facilities.
+CRITICAL: FATAL:  role "root" does not exist
+
+CRITICAL: FATAL:  role "root" does not exist
+
