@@ -3,7 +3,7 @@
 
 # Author: HC
 
-#Proj: OneSystemShock
+#Proj: OneSystemShop
 #Monitoring daemon
 
 """
@@ -26,7 +26,7 @@ import threading
 import datamodels
 import rpyc
 import logging
-import Queue
+import pickle
 from daemon import Daemon
 from cfgloader import DBCFGLoader, ReadMONConfig
 from pyPgSQL import PgSQL
@@ -34,10 +34,14 @@ from pyPgSQL import PgSQL
 global conn
 
 def startlog(MONconfig) :
+    """Starts logging facilities."""
+    
     logging.basicConfig(filename=MONconfig.getMONlog()['logfile'], format='%(asctime)s - %(name)s - %(levelname)s: %(message)s', level=MONconfig.getMONlog()['loglevel'])
     logging.info("Starting logging facilities.")
     
 def startDBcon() :
+    """ Starts connection to DB."""
+    
     global conn
     try :
         conninfo = DBCFGLoader()
@@ -51,29 +55,26 @@ def startDBcon() :
         logging.fatal(e)
 
 
-class AsyncInsert(threading.Thread) :
-    """DB Async Insert.
+def AsyncInsert(conn, incomingdata) :
+    """DB Insert.
     
     Handles async insterts in the DB:
 
     """
     
-    def __init__(self,conn,queue) :
-        self.cur = conn.cursor()
-        self.queue = queue
+    cur = conn.cursor()
     
-    def run(self) :
-        for n in self.data.getlistchecks() :
-            try :
-            # TO-DO, move this SQL Query to a function
-                self.cur.execute("UPDATE table mon_status \
-                    SET check_result = %(check_status)03d, check_summary = %(check_summary)s \
-                    WHERE host_name = %(hostname)s AND ip = %(ip)s AND check_name = %(check_name)s ;\
-                INSERT INTO mon_status (host_name, ip, check_name, check_result, check_summary) \
-                    VALUES(%(hostname)s, %(ip)s, %(check_name)s, %(check_status)03d, %(check_summary)s);", n)
-            except Exception, e :
-                #log if problem happened
-                logging.exception(e)
+    for n in self.data.getlistchecks() :
+        try :
+        # TO-DO, move this SQL Query to a function
+            self.cur.execute("UPDATE table mon_status \
+                SET check_result = %(check_status)03d, check_summary = %(check_summary)s \
+                WHERE host_name = %(hostname)s AND ip = %(ip)s AND check_name = %(check_name)s ;\
+            INSERT INTO mon_status (host_name, ip, check_name, check_result, check_summary) \
+                VALUES(%(hostname)s, %(ip)s, %(check_name)s, %(check_status)03d, %(check_summary)s);", n)
+        except Exception, e :
+            #log if problem happened
+            logging.exception(e)
 
     
 class OSSRpc(rpyc.Service) :
@@ -89,9 +90,10 @@ class OSSRpc(rpyc.Service) :
         # (to finalize the service, if needed)
         pass
     
-    def submitcheck(self, hostname, ip, checks) :
-        #To be changed, local daemon should be aware of the object itself and no
-        # need to instantiate a new object, it should provide a proper DataMon object
+    class SubmitCheck(hostname, ip, checks) :
+        checks = pickle.Unpickler(checks)
+        for n in checks :
+            pass
         incomingdata = datamodels.DataMon(hostname, ip, checks)
         AsyncInsert(conn, incomingdata)
 
@@ -105,8 +107,8 @@ class OSSMondThread(threading.Thread) :
     def run(self) :
         #To-Do: Might be meaningful to have debug info for start
         logging.debug("Invoking main thread.")
-        from rpyc.utils.server import ThreadedServer
-        thmain = ThreadedServer(OSSRpc, port = 20200)
+        from rpyc.utils.server import ThreadPoolServer
+        thmain = ThreadPoolServer(OSSRpc, port = 20200, nbThreads = 100)
         thmain.start()
 
     
@@ -164,12 +166,11 @@ class OSSMond(Daemon) :
     """Main class to spawn discrete threads."""
     
     def run(self):
-        global buffer
         global conn
         conn = startDBcon()
         threads = []
         try :
-            th1 = OSSMondThread(conn, buffer)
+            th1 = OSSMondThread(conn)
             th2 = OSSMondCommand(conn, buffer)
         except Exception, e :
             logging.exception(e)

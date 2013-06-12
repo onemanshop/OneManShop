@@ -3,7 +3,7 @@
 
 # Author: HC
 
-#Proj: OneSystemShock
+#Proj: OneSystemShop
 #Local Monitoring daemon
 """
 
@@ -32,14 +32,13 @@ import ast
 import socket
 import subprocess
 from daemon import Daemon
-from cfgloader import AgentConfigLoad
+import cfgloader #import AgentConfigLoad
 from signal import SIGTERM
-
-syslog.syslog('OSS_Agent starting.')
 
 def startlog(level) :
     logging.basicConfig(filename="/var/log/oss_agent.log", format='%(asctime)s - %(name)s - %(levelname)s: %(message)s', level=level)
     logging.info("Starting logging facilities.")
+    return logging
     
 def executecheck(check, checkconf) :
     try :
@@ -66,14 +65,20 @@ class OSSMonAgent(threading.Thread) :
         self.config = config
     
     def run(self) :
-        sys.path.append(self.config.plugins)
+        logging.info("Adding " + self.config["plugins"] + " to working directory sert.")
+        try :
+            sys.path.append(self.config["plugins"])
+        except :
+            logging.fatal("Could not append plugin directory to working set.")
+            os.sys.exit(1)
         plugins = []
-        for n in os.listdir(self.config.plugins) :
-            ncfg = os.path.join(self.config.pluginsconf, os.splitext(os.path.split(n)[1]) + ".cfg")
+        logging.info("MonAgent run")
+        for n in os.listdir(self.config["plugins"]) :
+            ncfg = os.path.join(self.config["pluginsconf"], os.splitext(os.path.split(n)[1]) + ".cfg")
             if os.path.exists(n) and os.path.exists(ncfg) :
                 plugins.append((os.path.join(self.config.plugins,n), ncfg))
             else :
-                syslog.syslog("Check plugin and its configuration file. In particular: " + os.path.split(n)[1])
+                logging.info("Check plugin and its configuration file. In particular: " + os.path.split(n)[1])
         while True :
             results = []
             for m in plugins :
@@ -88,19 +93,44 @@ class OSSMonAgent(threading.Thread) :
             async.start()
             time.sleep(self.config.interval)
 
+class listener(rpyc.Service) :
+    
+    def on_connect(self):
+        # code that runs when a connection is created
+        # (to init the serivce, if needed)
+        #config.allowed_hosts
+        pass
+
+    def on_disconnect(self):
+        # code that runs when the connection has already closed
+        # (to finalize the service, if needed)
+        pass
+
 
 class OSSAgent(Daemon) :
     """Starts the Agent Daemon and its threads."""
     
     def run(self):
-        config = AgentConfigLoad()
-        config.readconfig()
+        global config
+        global logging
+        cfg = cfgloader.AgentConfigLoad()
+        cfg.setCFG("/etc/oss/oss_agent.cfg")
+        try :
+            cfg.readconfig()
+        except Exception, e :
+            syslog.syslog(str(e))
+        config = cfg.getconfig()
+        if config == None :
+            syslog.syslog("Failed to read configuration file. Exiting...")
+            os.sys.exit(1)
+        startlog(config['loglevel'])
         threads = []
+        from rpyc.utils.server import ThreadPoolServer
         try :
             th1 = OSSMonAgent(config)
-            th2 = OSSMondCommand(conn)
+            th2 = ThreadPoolServer(listener, port = config['port'], nbThreads = 10)
         except Exception, e :
-            logging.exception(e)
+            logging.exception(str(e))
         logging.info("Starting main threads.")
         th1.start()
         th2.start()
@@ -109,13 +139,19 @@ class OSSAgent(Daemon) :
 
 
 if __name__ == "__main__":
-    daemon = OSSAgent('/var/run/oss_agent.pid')
+    daemon = OSSAgent('/var/run/oss_agent.pid', stderr="/var/log/oss_agent.log")
     if len(sys.argv) == 2:
         if 'start' == sys.argv[1]:
-            daemon.start()
+            syslog.syslog('OSS_Agent Starting.')
+            try :
+                daemon.start()
+            except Exception, e:
+                syslog.syslog(str(e))
         elif 'stop' == sys.argv[1]:
+            syslog.syslog('OSS_Agent stopping.')
             daemon.stop()
         elif 'restart' == sys.argv[1]:
+            syslog.syslog('OSS_Agent restarting.')
             daemon.restart()
         else:
             print "Unknown command"
