@@ -147,10 +147,20 @@ class AgentConfigLoad :
             syslog.syslog("Failed to get plugin_config_path from configuration file. " + str(e))
             return None
         try :
-            self.allowed_hosts = self.__config.get("oss_agent", 'allowed_hosts').split(",")
+            self.allowed_hosts = [x.strip(' ') for x in self.__config.get("oss_agent", 'allowed_hosts').split(",") ]
         except Exception, e :
             syslog.syslog("Failed to get the allowed_hosts from configuration file. " + str(e))
             return None
+        try :
+            self.monmaster = self.__config.get("oss_agent", 'monmaster')
+        except Exception, e :
+            syslog.syslog("Failed to get the master info from configuration file. " + str(e))
+            return None
+        try :
+            self.interval = self.__config.get("oss_agent", 'interval')
+        except Exception, e :
+            syslog.syslog("Failed to get the interval from configuration file. " + str(e))
+            return 10
         
         if not os.path.exists(self.pluginsconf) :
             syslog.syslog("Plugin configuration file does not exist.")
@@ -164,4 +174,4 @@ class AgentConfigLoad :
         self.MainCFG = cfg
     
     def getconfig(self) :
-        return {'path': self.path, 'loglevel': self.loglevel, 'port': self.port, 'allowed_hosts': self.allowed_hosts, 'plugins': self.plugins, 'pluginsconf': self.pluginsconf}
+        return {'path': self.path, 'loglevel': self.loglevel, 'port': self.port, 'allowed_hosts': self.allowed_hosts, 'plugins': self.plugins, 'pluginsconf': self.pluginsconf, 'monmaster' : self.monmaster, 'interval': int(self.interval)}

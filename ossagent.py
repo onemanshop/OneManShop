@@ -33,6 +33,7 @@ import socket
 import subprocess
 from daemon import Daemon
 import cfgloader #import AgentConfigLoad
+from rpyc.utils.server import ThreadPoolServer
 from signal import SIGTERM
 
 def startlog(level) :
@@ -88,24 +89,39 @@ class OSSMonAgent(threading.Thread) :
                     syslog.syslog("Check " + os.path.split(m)[1] + "failed to execute." )
                     if self.config.logging :
                         logging.warning(e)
-            clientconn = rpyc.connect(self.config.monmaster, 20200)
-            async = rpyc.async(clientconn.modules.submitcheck((socket.gethostname(),socket.gethostbyname_ex(socket.gethostname())[2][0],results)))
-            async.start()
-            time.sleep(self.config.interval)
+            try :
+                clientconn = rpyc.connect(self.config["monmaster"], 20200)
+                try :
+                    async = rpyc.async(clientconn.modules.submitcheck((socket.gethostname(),socket.gethostbyname_ex(socket.gethostname())[2][0],results)))
+                    async.start()
+                except :
+                    #Call couldn't be done...
+                    ### To-Do, extend error output
+                    pass
+            except :
+                logging.info("Failed to contact master server. Sleepting...")
+                time.sleep(5)
+            time.sleep(self.config['interval'])
 
-class listener(rpyc.Service) :
+class listen(rpyc.Service) :
     
     def on_connect(self):
-        # code that runs when a connection is created
-        # (to init the serivce, if needed)
-        #config.allowed_hosts
-        pass
+        
+        if config['allowed_hosts'].count(self._conn._channel.stream.sock.getpeername()[0]) > 0:
+            pass
+        else :
+            raise ValueError("Not in allowed host list.")
+        # code that runs when the connection has already closed
+        # (to finalize the service, if needed)
+        
 
     def on_disconnect(self):
         # code that runs when the connection has already closed
         # (to finalize the service, if needed)
         pass
-
+        
+    def exposed_tada(self):
+        return self._conn._channel.stream.sock.getpeername()[0]
 
 class OSSAgent(Daemon) :
     """Starts the Agent Daemon and its threads."""
@@ -125,12 +141,9 @@ class OSSAgent(Daemon) :
             os.sys.exit(1)
         startlog(config['loglevel'])
         threads = []
-        from rpyc.utils.server import ThreadPoolServer
-        try :
-            th1 = OSSMonAgent(config)
-            th2 = ThreadPoolServer(listener, port = config['port'], nbThreads = 10)
-        except Exception, e :
-            logging.exception(str(e))
+        th1 = OSSMonAgent(config)
+        th2 = ThreadPoolServer(listen, port = config['port'], nbThreads = 10)
+        
         logging.info("Starting main threads.")
         th1.start()
         th2.start()
@@ -149,6 +162,7 @@ if __name__ == "__main__":
                 syslog.syslog(str(e))
         elif 'stop' == sys.argv[1]:
             syslog.syslog('OSS_Agent stopping.')
+            logging.info("OSS Agent shutting down.")
             daemon.stop()
         elif 'restart' == sys.argv[1]:
             syslog.syslog('OSS_Agent restarting.')

@@ -53,7 +53,13 @@ def startDBcon() :
         return conn
     except Exception, e :
         logging.fatal(e)
-
+        
+def submitcheck(hostname, ip, checks) :
+    checks = pickle.Unpickler(checks)
+    for n in checks :
+        pass
+    incomingdata = datamodels.DataMon(hostname, ip, checks)
+    AsyncInsert(conn, incomingdata)
 
 def AsyncInsert(conn, incomingdata) :
     """DB Insert.
@@ -89,21 +95,17 @@ class OSSRpc(rpyc.Service) :
         # code that runs when the connection has already closed
         # (to finalize the service, if needed)
         pass
+        
+    def exposed_submitcheck(self, hostname, ip, checks):
+        submitcheck(hostname, ip, checks)
     
-    class SubmitCheck(hostname, ip, checks) :
-        checks = pickle.Unpickler(checks)
-        for n in checks :
-            pass
-        incomingdata = datamodels.DataMon(hostname, ip, checks)
-        AsyncInsert(conn, incomingdata)
-
 
 class OSSMondThread(threading.Thread) :
     
     def __init__(self, conn) :
         threading.Thread.__init__(self)
         self.conn = conn
-    
+
     def run(self) :
         #To-Do: Might be meaningful to have debug info for start
         logging.debug("Invoking main thread.")
@@ -131,7 +133,7 @@ class OSSMondCommand(threading.Thread) :
             try :
                 cur = conn.cursor()
             except Exception, e :
-                logging.ERROR("Connection to DB has been closed.")
+                logging.fatal("Connection to DB has been closed.")
                 conn = startDBcon()
             logging.info("Checking for commands to execute.")
             cur = conn.cursor()
@@ -162,7 +164,7 @@ class OSSMondCommand(threading.Thread) :
                 time.sleep(5)
             time.sleep(30)
 
-class OSSMond(Daemon) :
+class oss_mond(Daemon) :
     """Main class to spawn discrete threads."""
     
     def run(self):
@@ -171,7 +173,7 @@ class OSSMond(Daemon) :
         threads = []
         try :
             th1 = OSSMondThread(conn)
-            th2 = OSSMondCommand(conn, buffer)
+            th2 = OSSMondCommand(conn)
         except Exception, e :
             logging.exception(e)
         logging.info("Starting main threads.")
@@ -184,7 +186,7 @@ class OSSMond(Daemon) :
 
  
 if __name__ == "__main__":
-    MONconfig = readMONconfig()
+    MONconfig = ReadMONConfig()
     MONconfig.readconfig()
     daemon = oss_mond(MONconfig.monpidfile)
     if len(sys.argv) == 2:
